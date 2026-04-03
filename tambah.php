@@ -3,297 +3,135 @@ session_start();
 include "koneksi.php";
 
 $active_page = 'data_barang';
-// if (!isset($_SESSION['login'])) {
-//     header("Location: login.php");
-//     exit;
-// }
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-// DEFINISI PRIMARY KEY TABEL BARANG (Sesuai barang.sql)
 $primary_key = 'id_barang';
 
-// Proses Edit Barang
-// Proses Edit Barang
+// --- Bagian Logika PHP Tetap Sama (Tidak Berubah) ---
 if (isset($_POST['ubah_barang'])) {
     $id = (int) $_POST['id'];
     $nama = mysqli_real_escape_string($conn, $_POST['nama']);
     $harga = (int) $_POST['harga'];
-
-    // Ambil data stok saat ini dari database untuk validasi
     $cek = $conn->query("SELECT stok FROM barang WHERE id_barang = $id")->fetch_assoc();
     $stok_maksimal = (int)$cek['stok'];
-
     $s_baik  = max(0, (int)$_POST['stok_baik']);
     $s_rusak = max(0, (int)$_POST['stok_rusak']);
 
-    // VALIDASI: Total baik + rusak tidak boleh melebihi stok yang ada
     if (($s_baik + $s_rusak) > $stok_maksimal) {
-        echo "<script>
-                alert('Gagal! Total Baik ($s_baik) + Rusak ($s_rusak) melebihi stok yang ada ($stok_maksimal).');
-                window.location='tambah.php?edit=$id';
-              </script>";
+        echo "<script>alert('Gagal! Melebihi stok.'); window.location='tambah.php?edit=$id';</script>";
     } else {
-        // Update rincian kondisi (stok utama tetap sesuai data awal)
-        $sql = "UPDATE barang SET 
-                nama = '$nama', 
-                harga = '$harga', 
-                stok_baik = '$s_baik', 
-                stok_rusak = '$s_rusak' 
-                WHERE id_barang = $id";
-
+        $sql = "UPDATE barang SET nama = '$nama', harga = '$harga', stok_baik = '$s_baik', stok_rusak = '$s_rusak' WHERE id_barang = $id";
         if ($conn->query($sql)) {
-            echo "<script>alert('Kondisi Berhasil Diperbarui!'); window.location='tambah.php';</script>";
+            echo "<script>alert('Berhasil!'); window.location='tambah.php';</script>";
         }
     }
     exit();
 }
-// Ambil data untuk form edit
+
 $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = (int) $_GET['edit'];
     $res_edit = $conn->query("SELECT * FROM barang WHERE $primary_key=$id");
-    if ($res_edit && $res_edit->num_rows > 0) {
-        $edit_data = $res_edit->fetch_assoc();
-    }
+    if ($res_edit && $res_edit->num_rows > 0) { $edit_data = $res_edit->fetch_assoc(); }
 }
-
-
-// Query Utama
 $result = $conn->query("SELECT * FROM barang ORDER BY $primary_key DESC");
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Barang | Gudang Barang</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="dist/css/adminlte.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
     <style>
         body {
-            background-color: #f4f6f9;
-            font-family: 'Segoe UI', sans-serif;
+            background-color: #f8f9fa;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
         }
 
-        /* SIDEBAR CUSTOM SESUAI GAMBAR */
+        /* ASIDE TETAP (Sesuai Permintaan) */
         .main-sidebar {
-            width: 260px;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            background-color: #0d6efd;
-            /* Biru sesuai gambar */
-            padding: 20px 15px;
-            color: white;
-            z-index: 1000;
+            width: 260px; height: 100vh; position: fixed;
+            top: 0; left: 0; background-color: #0d6efd;
+            padding: 20px 15px; color: white; z-index: 1000;
         }
-
-        .sidebar-brand {
-            text-align: center;
-            margin-bottom: 40px;
+        .sidebar-brand { text-align: center; margin-bottom: 40px; }
+        .sidebar-brand i { font-size: 50px; margin-bottom: 10px; }
+        .sidebar-brand h2 { font-size: 24px; font-weight: bold; margin: 0; }
+        .nav-sidebar { list-style: none; padding: 0; }
+        .nav-item { margin-bottom: 10px; }
+        .nav-link { 
+            display: flex; flex-direction: column; align-items: flex-start;
+            padding: 12px 20px; color: rgba(255, 255, 255, 0.9);
+            text-decoration: none; border-radius: 12px; transition: 0.3s;
         }
+        .nav-link i { font-size: 20px; margin-bottom: 5px; }
+        .nav-link.active { background-color: white !important; color: #0d6efd !important; }
+        .logout-link { color: #ff4d4d !important; margin-top: 20px; }
 
-        .sidebar-brand i {
-            font-size: 50px;
-            margin-bottom: 10px;
-        }
-
-        .sidebar-brand h2 {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-        }
-
-        .nav-sidebar {
-            list-style: none;
-            padding: 0;
-        }
-
-        .nav-item {
-            margin-bottom: 10px;
-        }
-
-        .nav-link {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 12px 20px;
-            color: rgba(255, 255, 255, 0.9);
-            text-decoration: none;
-            border-radius: 12px;
-            transition: 0.3s;
-        }
-
-        .nav-link i {
-            font-size: 20px;
-            margin-bottom: 5px;
-        }
-
-        .nav-link p {
-            margin: 0;
-            font-weight: 500;
-        }
-
-        /* STYLE SAAT AKTIF (PUTIH SEPERTI GAMBAR) */
-        .nav-link.active {
-            background-color: white !important;
-            color: #0d6efd !important;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* LOGOUT KHUSUS */
-        .logout-link {
-            color: #ff4d4d !important;
-            /* Warna merah sesuai gambar */
-            margin-top: 20px;
-        }
-
-
-        /* CONTENT */
+        /* --- KUNCI LEBAR KE SAMPING --- */
         .content-wrapper {
-            margin-left: 250px;
-            padding: 30px;
+            margin-left: 260px; /* Lebar sidebar */
+            padding: 30px 50px; /* Padding atas-bawah 30px, Kanan-Kiri 50px agar luas */
+            width: calc(100% - 260px); /* Memaksa konten mengisi sisa layar */
             min-height: 100vh;
         }
 
-        h2 {
-            color: #0d6efd;
+        .container-fluid-custom {
+            width: 100%;
+            max-width: 100%; /* Menghilangkan batasan lebar */
         }
 
-        /* CARD */
+        /* CARD STYLE */
         .card {
             border: none;
             border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(13, 110, 253, 0.15);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            width: 100%;
+        }
+
+        /* TABLE Luas */
+        .table-responsive {
+            border-radius: 15px;
             overflow: hidden;
         }
-
-        .card-header {
-            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-            color: white;
-            font-weight: bold;
+        .table { width: 100%; margin-bottom: 0; white-space: nowrap; }
+        .table thead th {
+            background-color: #f1f5f9;
+            padding: 20px;
+            font-size: 0.85rem;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .table tbody td {
+            padding: 20px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
         }
 
-        /* TABLE */
-        table thead {
-            background: #e7f0ff;
+        /* Badge Kondisi */
+        .badge-kondisi {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
         }
 
-        table thead th {
-            color: #0d6efd;
-            font-weight: 600;
-        }
-
-        table tbody tr {
-            transition: 0.2s;
-        }
-
-        table tbody tr:hover {
-            background: #f1f7ff;
-            cursor: pointer;
-        }
-
-        /* BUTTON */
-        .btn-primary {
-            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-            border: none;
-            box-shadow: 0 6px 15px rgba(13, 110, 253, 0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #198754, #157347);
-            border: none;
-            box-shadow: 0 6px 15px rgba(25, 135, 84, 0.4);
-        }
-
-        .btn-light {
-            border-radius: 30px;
-        }
-
-        /* INPUT */
-        .form-control {
-            border-radius: 10px;
-            padding: 10px;
-        }
-
-        .form-control:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, .25);
-        }
-
-        /* ICON REMOVE */
-        .btn-remove {
-            color: #dc3545;
-            font-size: 1.3rem;
-            transition: 0.2s;
-        }
-
-        .btn-remove:hover {
-            transform: scale(1.2);
-        }
-
-        /* MODAL */
-        .modal-content {
-            border-radius: 20px;
-            overflow: hidden;
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-            color: white;
-        }
-
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .main-sidebar {
-                margin-left: -250px;
-            }
-
-            .content-wrapper {
-                margin-left: 0;
-            }
+        @media (max-width: 992px) {
+            .content-wrapper { margin-left: 0; width: 100%; padding: 20px; }
+            .main-sidebar { display: none; }
         }
     </style>
-
 </head>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<script>
-    $(document).ready(function() {
-        // Fungsi saat baris tabel diklik
-        $('.view-detail').click(function() {
-            const id = $(this).data('id');
-            const nama = $(this).data('nama');
-            const stok = $(this).data('stok');
-            const harga = $(this).data('harga');
-            const baik = $(this).data('baik');
-            const rusak = $(this).data('rusak');
-            const totalHarga = stok * harga;
-
-            // Isi data ke dalam Modal
-            $('#detail-nama').text(nama);
-            $('#detail-stok').text(stok);
-            $('#detail-harga').text('Rp ' + new Intl.NumberFormat('id-ID').format(harga));
-            $('#detail-total').text('Rp ' + new Intl.NumberFormat('id-ID').format(totalHarga));
-            $('#detail-baik').text(baik);
-            $('#detail-rusak').text(rusak);
-            // Tanggal default (karena di SQL tidak ada kolom tanggal, bisa diisi '-' atau tambahkan kolom tgl_masuk)
-            $('#detail-tanggal').text('Pembaruan Terakhir');
-
-            // Tampilkan Modal
-            $('#modalDetail').modal('show');
-        });
-    });
-</script>
-
-<body class="hold-transition sidebar-mini">
+<body>
     <div class="wrapper d-flex">
 
-
-        <!-- Sidebar langsung di sini -->
-        <aside class="main-sidebar">
+ <aside class="main-sidebar">
             <div class="sidebar-brand">
                 <h2 class="text-white text-center mb-4">
                     <i class="fas fa-store fa-2x mb-2"></i><br>
@@ -350,157 +188,137 @@ $result = $conn->query("SELECT * FROM barang ORDER BY $primary_key DESC");
             </ul>
         </aside>
 
-        <div class="content-wrapper w-100">
-            <section class="content-header mb-3">
-                <h2><i class="fas fa-boxes"></i> Manajemen Stok Barang</h2>
-            </section>
 
-            <section class="content">
+
+        <div class="content-wrapper">
+            <div class="container-fluid-custom">
+                
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="fw-bold text-dark m-0"><i class="fas fa-layer-group text-primary me-2"></i> Inventaris Barang</h2>
+                    <div class="text-muted small">Total Data: <b><?= $result->num_rows ?></b></div>
+                </div>
+
                 <?php if ($edit_data): ?>
-                    <div class="card card-warning mb-4 shadow">
-                        <div class="card-header">
-                            <h3 class="card-title text-dark">
-                                <?= $edit_data['nama'] ?>
-                                (Stok: <span id="maxStok"><?= $edit_data['stok'] ?></span>)
-                            </h3>
+                <div class="card mb-4 border-start border-warning border-5">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold">Edit Detail: <?= $edit_data['nama'] ?></h5>
+                            <a href="tambah.php" class="btn-close"></a>
                         </div>
-                        <div class="card-body">
-                            <form method="POST" onsubmit="return validasiStok()">
-                                <input type="hidden" name="id" value="<?= $edit_data['id_barang'] ?>">
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label class="fw-bold">Nama Barang</label>
-                                        <input type="text" name="nama" class="form-control" value="<?= $edit_data['nama'] ?>" required>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="fw-bold text-success">Jumlah Baik</label>
-                                        <input type="number" name="stok_baik" id="input_baik" class="form-control"
-                                            value="<?= $edit_data['stok_baik'] ?>" min="0" max="<?= $edit_data['stok'] ?>" required>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="fw-bold text-danger">Jumlah Rusak</label>
-                                        <input type="number" name="stok_rusak" id="input_rusak" class="form-control"
-                                            value="<?= $edit_data['stok_rusak'] ?>" min="0" max="<?= $edit_data['stok'] ?>" required>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="fw-bold">Harga (Rp)</label>
-                                        <input type="number" name="harga" class="form-control" value="<?= $edit_data['harga'] ?>" required>
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end">
-                                        <button type="submit" name="ubah_barang" class="btn btn-primary w-100 shadow-sm">Simpan</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
+                        <form method="POST" onsubmit="return validasiStok()">
+                            <input type="hidden" name="id" value="<?= $edit_data['id_barang'] ?>">
+                            <div class="row g-3">
+                                <div class="col-md-4"><label class="small fw-bold">Nama</label><input type="text" name="nama" class="form-control" value="<?= $edit_data['nama'] ?>" required></div>
+                                <div class="col-md-2"><label class="small fw-bold text-success">Baik</label><input type="number" name="stok_baik" id="input_baik" class="form-control" value="<?= $edit_data['stok_baik'] ?>" required></div>
+                                <div class="col-md-2"><label class="small fw-bold text-danger">Rusak</label><input type="number" name="stok_rusak" id="input_rusak" class="form-control" value="<?= $edit_data['stok_rusak'] ?>" required></div>
+                                <div class="col-md-2"><label class="small fw-bold">Harga</label><input type="number" name="harga" class="form-control" value="<?= $edit_data['harga'] ?>" required></div>
+                                <div class="col-md-2 d-flex align-items-end"><button type="submit" name="ubah_barang" class="btn btn-primary w-100 py-2">Update</button></div>
+                            </div>
+                            <p class="mt-2 mb-0 small text-muted">* Batas maksimal stok gabungan: <b id="maxStok"><?= $edit_data['stok'] ?></b></p>
+                        </form>
                     </div>
-
-                    <script>
-                        function validasiStok() {
-                            let max = parseInt(document.getElementById('maxStok').innerText);
-                            let baik = parseInt(document.getElementById('input_baik').value) || 0;
-                            let rusak = parseInt(document.getElementById('input_rusak').value) || 0;
-
-                            if ((baik + rusak) > max) {
-                                alert("Total jumlah Baik dan Rusak tidak boleh lebih dari " + max);
-                                return false; // Batalkan submit form
-                            }
-                            return true;
-                        }
-                    </script>
+                </div>
                 <?php endif; ?>
 
                 <div class="card">
-                    <div class="card-body p-0">
-                        <table class="table table-striped table-hover m-0">
-                            <thead class="table-dark">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
                                 <tr>
-                                    <th>No</th>
+                                    <th class="text-center" width="50">No</th>
                                     <th>Nama Barang</th>
-                                    <th>Stok</th>
-                                    <th>Harga</th>
-                                    <th>Kondisi</th>
+                                    <th>Stok Total</th>
+                                    <th>Harga Satuan</th>
+                                    <th>Rincian Kondisi</th>
                                     <th class="text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php
-                                if ($result && $result->num_rows > 0) {
-                                    $no = 1;
-                                    while ($d = $result->fetch_assoc()) {
-                                        // Tambahkan class 'view-detail' dan data-attributes
-                                        echo "<tr class='view-detail' style='cursor:pointer' 
-                 
-                  data-nama='{$d['nama']}' 
-                  data-stok='{$d['stok']}' 
-                  data-harga='{$d['harga']}' 
-                  data-baik='{$d['stok_baik']}' 
-                  data-rusak='{$d['stok_rusak']}'>
-                  <td class = 'text-center'>{$no}</td>
-            
-            <td><span class='text-primary fw-bold'>{$d['nama']}</span></td>
-            <td><b>{$d['stok']}</b></td>
-            <td>Rp " . number_format($d['harga'], 0, ',', '.') . "</td>
-            <td>
-                <span class='badge bg-success'>B: {$d['stok_baik']}</span>
-                <span class='badge bg-danger'>R: {$d['stok_rusak']}</span>
-            </td>
-            <td class='text-center'>
-                <a href='?edit={$d[$primary_key]}' class='btn btn-warning btn-sm' onclick='event.stopPropagation();'><i class='fas fa-edit'></i></a>
-            </td>
-        </tr>";
-                                        $no++;
-                                    }
-                                }
-                                ?>
+                                $no = 1;
+                                while ($d = $result->fetch_assoc()) : ?>
+                                    <tr class="view-detail" 
+                                        data-nama="<?= $d['nama'] ?>" data-stok="<?= $d['stok'] ?>" 
+                                        data-harga="<?= $d['harga'] ?>" data-baik="<?= $d['stok_baik'] ?>" 
+                                        data-rusak="<?= $d['stok_rusak'] ?>" style="cursor: pointer;">
+                                        <td class="text-center text-muted"><?= $no++ ?></td>
+                                        <td><span class="fw-bold text-primary"><?= $d['nama'] ?></span></td>
+                                        <td><span class="badge bg-primary-subtle text-primary px-3 py-2"><?= $d['stok'] ?> Unit</span></td>
+                                        <td><span class="text-muted small">Rp</span> <b><?= number_format($d['harga'], 0, ',', '.') ?></b></td>
+                                        <td>
+                                            <span class="badge-kondisi bg-success-subtle text-success">B: <?= $d['stok_baik'] ?></span>
+                                            <span class="badge-kondisi bg-danger-subtle text-danger">R: <?= $d['stok_rusak'] ?></span>
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="?edit=<?= $d[$primary_key] ?>" class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation();"><i class="fas fa-edit"></i></a>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </section>
+
+            </div>
         </div>
     </div>
+
     <div class="modal fade" id="modalDetail" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title"><i class="fas fa-info-circle"></i> Detail Barang</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="fw-bold"><i class="fas fa-info-circle me-2"></i> Detail Aset</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-0">
-                    <table class="table table-striped m-0">
-                        <tr>
-                            <th class="ps-3 w-50">Nama Barang</th>
-                            <td id="detail-nama"></td>
-                        </tr>
-
-                        <tr>
-                            <th class="ps-3">Stok Keseluruhan</th>
-                            <td id="detail-stok" class="fw-bold"></td>
-                        </tr>
-                        <tr>
-                            <th class="ps-3">Harga Satuan</th>
-                            <td id="detail-harga"></td>
-                        </tr>
-                        <tr class="table-primary">
-                            <th class="ps-3">Total Harga</th>
-                            <td id="detail-total" class="fw-bold text-primary"></td>
-                        </tr>
-                        <tr>
-                            <th class="ps-3 text-success">Kondisi Baik</th>
-                            <td><span class="badge bg-success" id="detail-baik"></span> Unit</td>
-                        </tr>
-                        <tr>
-                            <th class="ps-3 text-danger">Kondisi Rusak</th>
-                            <td><span class="badge bg-danger" id="detail-rusak"></span> Unit</td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <div class="modal-body p-4">
+                    <div class="p-3 bg-light rounded-4 mb-3">
+                        <label class="small text-muted d-block">Nama Barang</label>
+                        <h4 class="fw-bold text-dark m-0" id="detail-nama"></h4>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="small text-muted">Stok Total</label>
+                            <div class="fs-5 fw-bold" id="detail-stok"></div>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">Harga Unit</label>
+                            <div class="fs-5 fw-bold" id="detail-harga"></div>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6"><div class="p-2 border rounded-3 text-center"><small class="text-success d-block">Baik</small><b id="detail-baik"></b></div></div>
+                        <div class="col-6"><div class="p-2 border rounded-3 text-center"><small class="text-danger d-block">Rusak</small><b id="detail-rusak"></b></div></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</body>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.view-detail').click(function() {
+                const d = $(this).data();
+                $('#detail-nama').text(d.nama);
+                $('#detail-stok').text(d.stok + ' Unit');
+                $('#detail-harga').text('Rp ' + new Intl.NumberFormat('id-ID').format(d.harga));
+                $('#detail-baik').text(d.baik);
+                $('#detail-rusak').text(d.rusak);
+                $('#modalDetail').modal('show');
+            });
+        });
+
+        function validasiStok() {
+            let max = parseInt($('#maxStok').text());
+            let baik = parseInt($('#input_baik').val()) || 0;
+            let rusak = parseInt($('#input_rusak').val()) || 0;
+            if ((baik + rusak) > max) {
+                alert("Total jumlah Baik dan Rusak tidak boleh melebihi stok yang ada (" + max + ")");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>
 </html>

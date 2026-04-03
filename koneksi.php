@@ -2,7 +2,7 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db   = "fzone_team";
+$db   = "fzone_time";
 
 /** @var mysqli $conn */
 $conn = mysqli_connect($host, $user, $pass, $db);
